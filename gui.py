@@ -90,14 +90,15 @@ class Window(QWidget):
             
             elif name == "Zoom-out":
                 button.clicked.connect(self.zoom_out)
+            
+            elif name == "Trash":
+                button.clicked.connect(self.clear_canvas)
 
             toolbar_layout.addWidget(button)
 
         toolbar_widget.setLayout(toolbar_layout)  # Set layout inside widget
         return toolbar_widget  # Return wrapped toolbar
 
-    def button_clicked(self, name):
-        print(f"{name} button clicked!")  # Example function
 
     #------- Center Canas ----------#
     def create_canvas(self):
@@ -224,6 +225,11 @@ class Window(QWidget):
             self.zoom_factor /= 1.2  # Decrease zoom factor
             self.update_image_display()
 
+    def clear_canvas(self):
+        """Clear the canvas and reset the image label"""
+        self.cv_image = None  # Clear the current image
+        self.zoom_factor = 1.0  # Reset zoom factor
+        self.image_label.clear()  # Clear the image label
 
 def start():
     app = QApplication([])
