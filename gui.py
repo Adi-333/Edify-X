@@ -58,7 +58,7 @@ class Window(QWidget):
             "Import": "Import.svg",
             "Export": "Export.svg",
             "Select": "Select.svg",
-            "Move": "Move.svg",
+            "Rotate": "Rotate.svg",
             "Crop": "Crop.svg",
             "Zoom-in": "Zoom-in.svg",
             "Zoom-out": "Zoom-out.svg",
