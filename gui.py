@@ -1,7 +1,8 @@
-from PyQt6.QtWidgets import QApplication, QWidget, QVBoxLayout, QHBoxLayout, QPushButton, QFrame, QLabel, QGridLayout, QScrollArea,QFileDialog
-from PyQt6.QtGui import QIcon, QPixmap, QFont, QImage
-from PyQt6.QtCore import Qt, QSize
-import sys, os, cv2
+from PyQt6.QtWidgets import QApplication, QWidget, QVBoxLayout, QHBoxLayout, QPushButton, QFrame, QLabel, QGridLayout, QScrollArea, QFileDialog
+from PyQt6.QtGui import QIcon, QPixmap, QFont, QImage, QMouseEvent, QKeyEvent
+from PyQt6.QtCore import Qt, QSize, QPoint
+import sys, os
+import cv2
 
 MAIN_ICON = "./assets/icons/main_icon.png"
 
@@ -44,6 +45,11 @@ class Window(QWidget):
         # Push other elements to the right
         main_layout.addStretch()  # Push other elements to the right
 
+        self.image_selected = False
+        self.dragging = False
+        self.image_pos = QPoint(0,0)
+        self.last_mouse_pos = QPoint(0,0)
+
     # ------- Left Toolbar ----------- #
     def create_toolbar(self):
         toolbar_widget = QWidget()  # Wrapper for styling
@@ -84,6 +90,9 @@ class Window(QWidget):
             """)
             if name == "Import":
                 button.clicked.connect(self.choose_image)
+
+            elif name == "Select":
+                button.clicked.connect(self.enable_selection)
 
             elif name == "Zoom-in":
                 button.clicked.connect(self.zoom_in)
@@ -189,8 +198,15 @@ class Window(QWidget):
 
             self.original_image = self.cv_image.copy()
             self.update_image_display()
-        else:
-            print("Error in importing the file :<")
+
+            # Enable selection by clicking on the image
+            self.image_label.mousePressEvent = self.select_image
+            self.image_label.mouseMoveEvent = self.move_image
+            self.image_label.mouseReleaseEvent = self.stop_moving
+
+
+            # Enable deselection when clicking outside the image
+            self.canvas.mousePressEvent = self.deselect_image
 
     def update_image_display(self):
         """Updates QLabel with the image"""
@@ -212,6 +228,47 @@ class Window(QWidget):
         self.image_label.setPixmap(pixmap)
         self.image_label.resize(w, h)  
         self.image_label.setAlignment(Qt.AlignmentFlag.AlignCenter)
+
+
+        if self.image_selected:
+            self.image_label.setStyleSheet("border: 3px solid #6B679C;")  # Green border
+        else:
+            self.image_label.setStyleSheet("border: none;")
+
+
+    def enable_selection(self):
+        """Activates selection mode"""
+        print("Selection Mode Enabled")
+        self.image_selected = True
+        self.update_image_display()
+
+    def select_image(self, event):
+        """Selects the image and enables movement"""
+        if self.image_selected:
+            self.dragging = True
+            self.last_mouse_pos = event.pos()  # Store initial mouse position
+            print("Image Selected for Movement")
+
+    def deselect_image(self, event):
+        """Deselects the image when clicking outside it"""
+        print("Image Deselected")
+        self.image_selected = False
+        self.dragging = False
+        self.update_image_display()
+
+    def move_image(self, event: QMouseEvent):
+        """Moves the image when dragging"""
+        if self.dragging:
+            new_pos = event.pos() - self.last_mouse_pos
+            self.image_pos += new_pos  # Update image position
+            self.image_label.move(self.image_pos)  # Move QLabel
+            self.last_mouse_pos = event.pos() 
+
+    def stop_moving(self, event):
+        """Stops moving the image when mouse is released"""
+        if self.dragging:
+            self.dragging = False
+            print("Stopped Moving Image")
 
     def zoom_in(self):
         """Zoom in on the image"""
