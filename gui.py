@@ -204,6 +204,7 @@ class Window(QWidget):
         if self.cv_image is not None:
             self.image_path = image_path  
 
+
             self.original_image = self.cv_image.copy()
             self.update_image_display()
 
@@ -215,6 +216,8 @@ class Window(QWidget):
 
             # Enable deselection when clicking outside the image
             self.canvas.mousePressEvent = self.deselect_image
+
+
 
     def update_image_display(self, image = None):
         """Updates QLabel with the image"""
@@ -354,16 +357,31 @@ class Window(QWidget):
     def crop_image(self):
         """Crops the selected area from the image"""
         if self.start_point and self.end_point:
-            x1 = min(self.start_point.x(), self.end_point.x())
-            y1 = min(self.start_point.y(), self.end_point.y())
-            x2 = max(self.start_point.x(), self.end_point.x())
-            y2 = max(self.start_point.y(), self.end_point.y())
+
+            if not hasattr(self, "original_image") or self.original_image is None:
+                print("Error: No original image to crop from!")
+                return
+
+            label_width = self.image_label.width()
+            label_height = self.image_label.height()
+            img_height, img_width = self.cv_image.shape[:2]
+
+
+            scale_x = img_width / label_width
+            scale_y = img_height / label_height
+
+
+
+            x1 = int(round(min(self.start_point.x(), self.end_point.x()) * scale_x))
+            y1 = int(round(min(self.start_point.y(), self.end_point.y()) * scale_y))
+            x2 = int(round(max(self.start_point.x(), self.end_point.x()) * scale_x))
+            y2 = int(round(max(self.start_point.y(), self.end_point.y()) * scale_y))
             
             # Ensure the coordinates are within the image bounds
             x1 = max(0, x1)
             y1 = max(0, y1)
-            x2 = min(self.cv_image.shape[1], x2)
-            y2 = min(self.cv_image.shape[0], y2)
+            x2 = min(img_width, x2)
+            y2 = min(img_height, y2)
 
             
             
@@ -382,9 +400,9 @@ class Window(QWidget):
             # self.image_label.mouseReleaseEvent = self.mouse_release_event
 
             self.image_label.setCursor(Qt.CursorShape.ArrowCursor)
-            self.image_label.mousePressEvent = None
-            self.image_label.mouseMoveEvent = None
-            self.image_label.mouseReleaseEvent = None
+            self.image_label.mousePressEvent = self.select_image
+            self.image_label.mouseMoveEvent = self.move_image
+            self.image_label.mouseReleaseEvent = self.stop_moving
 
 
     def update_crop_rectangle(self):
@@ -392,26 +410,24 @@ class Window(QWidget):
 
             temp_image = self.cv_image.copy()
 
+            label_width = self.image_label.width()
+            label_height = self.image_label.height()
+            img_height, img_width = self.cv_image.shape[:2]
+
+            scale_x = img_width / label_width
+            scale_y = img_height / label_height
+
             """Get the coordinates for the rectangle"""
-            x1 = min(self.start_point.x(), self.end_point.x())
-            y1 = min(self.start_point.y(), self.end_point.y())
-            x2 = max(self.start_point.x(), self.end_point.x())
-            y2 = max(self.start_point.y(), self.end_point.y())
+            x1 = int(min(self.start_point.x(), self.end_point.x()) * scale_x)
+            y1 = int(min(self.start_point.y(), self.end_point.y()) * scale_y)
+            x2 = int(max(self.start_point.x(), self.end_point.x()) * scale_x)
+            y2 = int(max(self.start_point.y(), self.end_point.y()) * scale_y)
 
 
-            # overlay = temp_image.copy()
-            # overlay[:] = (0, 0, 0)  # Fill with black
-            # cv2.rectangle(overlay, (x1, y1), (x2, y2), (255, 255, 255), -1)  # White rectangle
+            
             cv2.rectangle(temp_image, (x1, y1), (x2, y2), (0, 255, 255), 2)  # White rectangle
 
-            # Blend the overlay with the original image
-            # alpha = 0.5  # Transparency factor
-            # cv2.addWeighted(overlay, alpha, temp_image, 1 - alpha, 0, temp_image)
-
-            # Draw the rectangle on the image
-            # cv2.rectangle(temp_image, (x1, y1), (x2, y2), (0, 255, 0), 2)  # Green rectangle for cropping area
-
-            # Update the display with the rectangle and overlay
+        
             self.update_image_display(temp_image)
 
 
