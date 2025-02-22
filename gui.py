@@ -56,12 +56,14 @@ class Window(QWidget):
 
         icons = {
             "Import": "Import.svg",
+            "Export": "Export.svg",
             "Select": "Select.svg",
             "Move": "Move.svg",
             "Crop": "Crop.svg",
             "Zoom-in": "Zoom-in.svg",
             "Zoom-out": "Zoom-out.svg",
-            "Text": "Text.svg"
+            "Text": "Text.svg",
+            "Trash": "Trash.svg"
         }
 
         for name, icon in icons.items():
