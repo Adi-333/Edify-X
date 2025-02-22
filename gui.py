@@ -1,7 +1,7 @@
-from PyQt6.QtWidgets import QApplication, QWidget, QVBoxLayout, QHBoxLayout, QPushButton, QFrame, QLabel, QGridLayout, QScrollArea
-from PyQt6.QtGui import QIcon, QPixmap, QFont
+from PyQt6.QtWidgets import QApplication, QWidget, QVBoxLayout, QHBoxLayout, QPushButton, QFrame, QLabel, QGridLayout, QScrollArea,QFileDialog
+from PyQt6.QtGui import QIcon, QPixmap, QFont, QImage
 from PyQt6.QtCore import Qt, QSize
-import sys
+import sys, os, cv2
 
 MAIN_ICON = "./assets/icons/main_icon.png"
 
@@ -55,6 +55,7 @@ class Window(QWidget):
         toolbar_layout.setAlignment(Qt.AlignmentFlag.AlignCenter)
 
         icons = {
+            "Import": "Import.svg",
             "Select": "Select.svg",
             "Move": "Move.svg",
             "Crop": "Crop.svg",
@@ -81,6 +82,8 @@ class Window(QWidget):
                     border-radius: 5px;
                 }
             """)
+            if name == "Import":
+                button.clicked.connect(self.choose_image)
 
             button.clicked.connect(lambda checked, n=name: self.button_clicked(n))  # Connect button click
 
@@ -102,6 +105,11 @@ class Window(QWidget):
         canvas.setStyleSheet(f"background-color: {CANVAS_COLOR}; border: 2px solid {SPANEL_COLOR};")
         canvas.setMinimumSize(900, 500)
 
+        self.image_label = QLabel(canvas)
+        self.image_label.setAlignment(Qt.AlignmentFlag.AlignCenter)
+        self.image_label.setGeometry(0, 0, 900, 500)
+        self.image_label.setScaledContents(False)
+        
         canvas_layout.addWidget(canvas, alignment = Qt.AlignmentFlag.AlignCenter)
 
         return canvas_wrapper
@@ -159,6 +167,42 @@ class Window(QWidget):
         side_layout.addLayout(blending_layout)
 
         return side_panel_frame  # Return the frame instead of layout
+    
+    def choose_image(self):
+        #open a file dialogue for image selection
+        file_dialogue = QFileDialog()
+        file_path, _ = file_dialogue.getOpenFileName(self, "Select Image", "", "Images(*.png *.jpg *.jpeg )")
+
+        if file_path:
+            print(f"Selected image: {file_path}")
+            self.display_image(file_path)
+    
+    def display_image(self, image_path):
+        self.cv_image = cv2.imread(image_path)  
+        if self.cv_image is not None:
+            self.image_path = image_path  
+
+            self.original_image = self.cv_image.copy()
+            self.update_image_display()
+        else:
+            print("Error in importing the file :<")
+
+    def update_image_display(self, image = None):
+        """Updates QLabel with the image"""
+        if self.cv_image is None:
+            return
+        
+        rgb_image = cv2.cvtColor(self.cv_image, cv2.COLOR_BGR2RGB)
+        h, w, ch = rgb_image.shape
+        bytes_per_line = ch * w
+        qimage = QImage(rgb_image.data, w, h, bytes_per_line, QImage.Format.Format_RGB888)
+        pixmap = QPixmap.fromImage(qimage)
+
+        self.image_label.setPixmap(pixmap)
+        self.image_label.resize(w, h)  
+        self.image_label.setAlignment(Qt.AlignmentFlag.AlignCenter)
+
+
 
 def start():
     app = QApplication([])
