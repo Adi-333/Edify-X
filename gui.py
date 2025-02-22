@@ -14,7 +14,7 @@ SPANEL_HEADING_COLOR = "#3d3b3b"
 class Window(QWidget):
     def __init__(self):
         super().__init__()
-
+        self.zoom_factor = 1.0
         # Get screen size
         screen = QApplication.primaryScreen()
         screen_geometry = screen.geometry()
@@ -85,7 +85,11 @@ class Window(QWidget):
             if name == "Import":
                 button.clicked.connect(self.choose_image)
 
-            button.clicked.connect(lambda checked, n=name: self.button_clicked(n))  # Connect button click
+            elif name == "Zoom-in":
+                button.clicked.connect(self.zoom_in)
+            
+            elif name == "Zoom-out":
+                button.clicked.connect(self.zoom_out)
 
             toolbar_layout.addWidget(button)
 
@@ -187,12 +191,18 @@ class Window(QWidget):
         else:
             print("Error in importing the file :<")
 
-    def update_image_display(self, image = None):
+    def update_image_display(self):
         """Updates QLabel with the image"""
         if self.cv_image is None:
             return
         
-        rgb_image = cv2.cvtColor(self.cv_image, cv2.COLOR_BGR2RGB)
+        # Resize the image based on the zoom factor
+        height, width = self.cv_image.shape[:2]
+        new_width = int(width * self.zoom_factor)
+        new_height = int(height * self.zoom_factor)
+        
+        resized_image = cv2.resize(self.cv_image, (new_width, new_height))
+        rgb_image = cv2.cvtColor(resized_image, cv2.COLOR_BGR2RGB)
         h, w, ch = rgb_image.shape
         bytes_per_line = ch * w
         qimage = QImage(rgb_image.data, w, h, bytes_per_line, QImage.Format.Format_RGB888)
@@ -202,6 +212,17 @@ class Window(QWidget):
         self.image_label.resize(w, h)  
         self.image_label.setAlignment(Qt.AlignmentFlag.AlignCenter)
 
+    def zoom_in(self):
+        """Zoom in on the image"""
+        if self.cv_image is not None:
+            self.zoom_factor *= 1.2  # Increase zoom factor
+            self.update_image_display()
+
+    def zoom_out(self):
+        """Zoom out on the image"""
+        if self.cv_image is not None:
+            self.zoom_factor /= 1.2  # Decrease zoom factor
+            self.update_image_display()
 
 
 def start():
