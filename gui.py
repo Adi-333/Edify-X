@@ -1,4 +1,4 @@
-from PyQt6.QtWidgets import QApplication, QWidget, QVBoxLayout, QHBoxLayout, QPushButton, QFrame, QLabel, QGridLayout, QScrollArea, QFileDialog
+from PyQt6.QtWidgets import QApplication, QWidget, QVBoxLayout, QHBoxLayout, QPushButton, QFrame, QLabel, QFileDialog, QSlider
 from PyQt6.QtGui import QIcon, QPixmap, QFont, QImage, QMouseEvent, QKeyEvent
 from PyQt6.QtCore import Qt, QSize, QPoint
 import sys, os
@@ -142,7 +142,6 @@ class Window(QWidget):
         side_panel_frame.setStyleSheet(f"background-color: {CANVAS_COLOR}; border-radius: 8px;")
         side_panel_frame.setFixedWidth(220)
         
-        # Use QVBoxLayout for better vertical alignment
         side_layout = QVBoxLayout(side_panel_frame)  
         side_layout.setSpacing(10)
         side_layout.setContentsMargins(10, 10, 10, 10)
@@ -153,7 +152,7 @@ class Window(QWidget):
         blending_label = QLabel("Blending")
         blending_label.setFont(QFont("Arial", 12, QFont.Weight.Bold))
         blending_label.setStyleSheet(f"color: {SPANEL_HEADING_COLOR};")
-        blending_label.setAlignment(Qt.AlignmentFlag.AlignTop | Qt.AlignmentFlag.AlignHCenter)  # Center align text
+        blending_label.setAlignment(Qt.AlignmentFlag.AlignTop | Qt.AlignmentFlag.AlignHCenter)
         blending_layout.addWidget(blending_label)
 
         # Add stretch above blending box to push it towards center
@@ -174,10 +173,11 @@ class Window(QWidget):
                     border: none;
                 }
                 QPushButton:hover {
-                    background-color: rgba(255, 255, 255, 0.1);  /* Light transparent white */
+                    background-color: rgba(255, 255, 255, 0.1);  
                     border-radius: 5px;
                 }
             """)
+            btn.clicked.connect(lambda checked, opt=option: self.adjust_blending(opt))  # Connect to adjust_blending method
             blending_box_layout.addWidget(btn)
 
         blending_layout.addWidget(blending_box)
@@ -188,7 +188,15 @@ class Window(QWidget):
         # -------- Adding to Side Panel Layout --------
         side_layout.addLayout(blending_layout)
 
-        return side_panel_frame  # Return the frame instead of layout
+        # Create sliders for hue, saturation, and luminosity adjustment
+        self.hue_slider = QSlider(Qt.Orientation.Horizontal)
+        self.hue_slider.setRange(0, 360)  # Hue ranges from 0 to 360 degrees
+        self.hue_slider.setValue(0)  # Default value
+        self.hue_slider.setVisible(False)  # Initially hidden
+        self.hue_slider.valueChanged.connect(self.update_hue)  # Connect to update_hue method
+        side_layout.addWidget(self.hue_slider)
+
+        return side_panel_frame
     
     def choose_image(self):
         #open a file dialogue for image selection
@@ -213,10 +221,8 @@ class Window(QWidget):
             self.image_label.mouseMoveEvent = self.move_image
             self.image_label.mouseReleaseEvent = self.stop_moving
 
-
             # Enable deselection when clicking outside the image
             self.canvas.mousePressEvent = self.deselect_image
-
 
 
     def update_image_display(self, image = None):
@@ -350,10 +356,6 @@ class Window(QWidget):
             self.image_label.mouseMoveEvent = None
             self.image_label.mouseReleaseEvent = None
 
-    
-
-
-
     def crop_image(self):
         """Crops the selected area from the image"""
         if self.start_point and self.end_point:
@@ -370,8 +372,6 @@ class Window(QWidget):
             scale_x = img_width / label_width
             scale_y = img_height / label_height
 
-
-
             x1 = int(round(min(self.start_point.x(), self.end_point.x()) * scale_x))
             y1 = int(round(min(self.start_point.y(), self.end_point.y()) * scale_y))
             x2 = int(round(max(self.start_point.x(), self.end_point.x()) * scale_x))
@@ -383,8 +383,6 @@ class Window(QWidget):
             x2 = min(img_width, x2)
             y2 = min(img_height, y2)
 
-            
-            
             # Crop the image
             self.cv_image = self.original_image[y1:y2, x1:x2].copy()
             self.update_image_display()
@@ -392,18 +390,11 @@ class Window(QWidget):
             self.is_cropping = False
             self.start_point = None
             self.end_point = None
-            # self.image_label.setCursor(Qt.CursorShape.CrossCursor)
-
-            # Reattach mouse events to allow multiple crops
-            # self.image_label.mousePressEvent = self.mouse_press_event
-            # self.image_label.mouseMoveEvent = self.mouse_move_event
-            # self.image_label.mouseReleaseEvent = self.mouse_release_event
 
             self.image_label.setCursor(Qt.CursorShape.ArrowCursor)
             self.image_label.mousePressEvent = self.select_image
             self.image_label.mouseMoveEvent = self.move_image
             self.image_label.mouseReleaseEvent = self.stop_moving
-
 
     def update_crop_rectangle(self):
         if self.start_point and self.end_point:
@@ -423,13 +414,30 @@ class Window(QWidget):
             x2 = int(max(self.start_point.x(), self.end_point.x()) * scale_x)
             y2 = int(max(self.start_point.y(), self.end_point.y()) * scale_y)
 
-
-            
             cv2.rectangle(temp_image, (x1, y1), (x2, y2), (0, 255, 255), 2)  # White rectangle
-
         
             self.update_image_display(temp_image)
 
+    def adjust_blending(self, option):
+        """Show the slider for adjusting the selected blending option"""
+        if option == "Hue":
+            self.hue_slider.setVisible(True)  # Show the hue slider
+        else:
+            self.hue_slider.setVisible(False)  # Hide the slider for other options
+
+    def update_hue(self):
+        """Update the image hue based on the slider value"""
+        if self.cv_image is not None:
+            hue_value = self.hue_slider.value()  # Get the current value of the slider
+
+            hue_shift = hue_value % 100
+            # Convert the image to HSV
+            hsv_image = cv2.cvtColor(self.cv_image, cv2.COLOR_BGR2HSV)
+            # Adjust the hue
+            hsv_image[:, :, 0] = (hsv_image[:, :, 0] + hue_shift) % 100  # OpenCV uses 0-179 for hue
+            # Convert back to BGR
+            self.cv_image = cv2.cvtColor(hsv_image, cv2.COLOR_HSV2BGR)
+            self.update_image_display()  # Update the displayed image
 
 def start():
     app = QApplication([])
