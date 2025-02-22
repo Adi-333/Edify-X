@@ -59,8 +59,6 @@ class Window(QWidget):
             "Select": "Select.svg",
             "Move": "Move.svg",
             "Crop": "Crop.svg",
-            "Undo": "Undo.svg",
-            "Redo": "Redo.svg",
             "Zoom-in": "Zoom-in.svg",
             "Zoom-out": "Zoom-out.svg",
             "Text": "Text.svg"
