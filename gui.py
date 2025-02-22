@@ -106,6 +106,11 @@ class Window(QWidget):
             elif name == "Export":
                 button.clicked.connect(self.export_image)
 
+            elif name == "Crop":
+                button.clicked.connect(self.start_crop)
+
+            
+
             toolbar_layout.addWidget(button)
 
         toolbar_widget.setLayout(toolbar_layout)  # Set layout inside widget
@@ -211,7 +216,7 @@ class Window(QWidget):
             # Enable deselection when clicking outside the image
             self.canvas.mousePressEvent = self.deselect_image
 
-    def update_image_display(self):
+    def update_image_display(self, image = None):
         """Updates QLabel with the image"""
         if self.cv_image is None:
             return
@@ -238,7 +243,7 @@ class Window(QWidget):
         else:
             self.image_label.setStyleSheet("border: none;")
 
-
+    
     def enable_selection(self):
         """Activates selection mode"""
         print("Selection Mode Enabled")
@@ -308,6 +313,108 @@ class Window(QWidget):
                 print(f"Image saved successfully at: {file_path}")
             else:
                 print("Error saving the image.")
+
+    def start_crop(self):
+        """Implementing crop"""
+        self.is_cropping = True
+        self.start_point = None
+        self.end_point = None
+        self.image_label.setCursor(Qt.CursorShape.CrossCursor)
+        self.image_label.mousePressEvent = self.mouse_press_event
+        self.image_label.mouseMoveEvent = self.mouse_move_event
+        self.image_label.mouseReleaseEvent = self.mouse_release_event
+
+
+    def mouse_press_event(self, event):
+        """Get the starting coordinates of the mouse"""
+        if event.button() == Qt.MouseButton.LeftButton and self.is_cropping:
+            self.start_point = event.pos()
+            self.end_point = event.pos() 
+
+    def mouse_move_event(self, event):
+        """Updates the end point of mouse while dragging"""
+        if self.is_cropping and self.start_point is not None:
+            self.end_point = event.pos()
+            self.update_crop_rectangle()
+
+    def mouse_release_event(self, event):
+        """Finalizez the crop selection"""
+        if event.button() == Qt.MouseButton.LeftButton and self.is_cropping:
+            self.is_cropping = False
+            self.crop_image()
+            self.image_label.setCursor(Qt.CursorShape.ArrowCursor)
+            self.image_label.mousePressEvent = None
+            self.image_label.mouseMoveEvent = None
+            self.image_label.mouseReleaseEvent = None
+
+    
+
+
+
+    def crop_image(self):
+        """Crops the selected area from the image"""
+        if self.start_point and self.end_point:
+            x1 = min(self.start_point.x(), self.end_point.x())
+            y1 = min(self.start_point.y(), self.end_point.y())
+            x2 = max(self.start_point.x(), self.end_point.x())
+            y2 = max(self.start_point.y(), self.end_point.y())
+            
+            # Ensure the coordinates are within the image bounds
+            x1 = max(0, x1)
+            y1 = max(0, y1)
+            x2 = min(self.cv_image.shape[1], x2)
+            y2 = min(self.cv_image.shape[0], y2)
+
+            
+            
+            # Crop the image
+            self.cv_image = self.original_image[y1:y2, x1:x2].copy()
+            self.update_image_display()
+            
+            self.is_cropping = False
+            self.start_point = None
+            self.end_point = None
+            # self.image_label.setCursor(Qt.CursorShape.CrossCursor)
+
+            # Reattach mouse events to allow multiple crops
+            # self.image_label.mousePressEvent = self.mouse_press_event
+            # self.image_label.mouseMoveEvent = self.mouse_move_event
+            # self.image_label.mouseReleaseEvent = self.mouse_release_event
+
+            self.image_label.setCursor(Qt.CursorShape.ArrowCursor)
+            self.image_label.mousePressEvent = None
+            self.image_label.mouseMoveEvent = None
+            self.image_label.mouseReleaseEvent = None
+
+
+    def update_crop_rectangle(self):
+        if self.start_point and self.end_point:
+
+            temp_image = self.cv_image.copy()
+
+            """Get the coordinates for the rectangle"""
+            x1 = min(self.start_point.x(), self.end_point.x())
+            y1 = min(self.start_point.y(), self.end_point.y())
+            x2 = max(self.start_point.x(), self.end_point.x())
+            y2 = max(self.start_point.y(), self.end_point.y())
+
+
+            # overlay = temp_image.copy()
+            # overlay[:] = (0, 0, 0)  # Fill with black
+            # cv2.rectangle(overlay, (x1, y1), (x2, y2), (255, 255, 255), -1)  # White rectangle
+            cv2.rectangle(temp_image, (x1, y1), (x2, y2), (0, 255, 255), 2)  # White rectangle
+
+            # Blend the overlay with the original image
+            # alpha = 0.5  # Transparency factor
+            # cv2.addWeighted(overlay, alpha, temp_image, 1 - alpha, 0, temp_image)
+
+            # Draw the rectangle on the image
+            # cv2.rectangle(temp_image, (x1, y1), (x2, y2), (0, 255, 0), 2)  # Green rectangle for cropping area
+
+            # Update the display with the rectangle and overlay
+            self.update_image_display(temp_image)
+
+
 def start():
     app = QApplication([])
     
