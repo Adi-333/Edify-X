@@ -93,6 +93,9 @@ class Window(QWidget):
             
             elif name == "Trash":
                 button.clicked.connect(self.clear_canvas)
+            
+            elif name == "Export":
+                button.clicked.connect(self.export_image)
 
             toolbar_layout.addWidget(button)
 
@@ -231,6 +234,23 @@ class Window(QWidget):
         self.zoom_factor = 1.0  # Reset zoom factor
         self.image_label.clear()  # Clear the image label
 
+    def export_image(self):
+        """Open a file dialog to save the modified image"""
+        if self.cv_image is None:
+            print("No image to export.")
+            return  # Exit if there is no image to export
+
+        # Open a file dialog to choose the save location
+        file_dialogue = QFileDialog()
+        file_path, _ = file_dialogue.getSaveFileName(self, "Save Image", "", "Images (*.png *.jpg *.jpeg)")
+
+        if file_path:
+            # Save the current image to the chosen file path
+            success = cv2.imwrite(file_path, self.cv_image)
+            if success:
+                print(f"Image saved successfully at: {file_path}")
+            else:
+                print("Error saving the image.")
 def start():
     app = QApplication([])
     
