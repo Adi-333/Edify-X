@@ -167,6 +167,12 @@ class Window(QWidget):
         blending_label.setAlignment(Qt.AlignmentFlag.AlignTop | Qt.AlignmentFlag.AlignHCenter)
         blending_layout.addWidget(blending_label)
 
+        self.saturation_slider = QSlider(Qt.Orientation.Horizontal)
+        self.saturation_slider.setRange(-100, 100)  # Left = B/W, Right = Max Saturation
+        self.saturation_slider.setValue(0)  # Default = Normal saturation
+        self.saturation_slider.setVisible(False)  # Initially hidden
+        self.saturation_slider.valueChanged.connect(self.update_saturation)
+
         # Add stretch above blending box to push it towards center
         blending_layout.addStretch(1)  
 
@@ -542,44 +548,75 @@ class Window(QWidget):
             self.saturation_slider.setVisible(False)  # Hide the saturation slider
 
     def update_hue(self):
-        """Update the image hue based on the slider value"""
         if self.cv_image is not None:
-            hue_value = self.hue_slider.value()  # Get the current value of the slider
+            hue_value = self.hue_slider.value()  # Get slider value (0-360)
 
-            hue_shift = hue_value % 100
-            # Convert the image to HSV
+            # OpenCV hue range is 0-179, so we scale it
+            hue_shift = int((hue_value / 100) * 50)
+
+            # Convert image to HSV
             hsv_image = cv2.cvtColor(self.cv_image, cv2.COLOR_BGR2HSV)
-            # Adjust the hue
-            hsv_image[:, :, 0] = (hsv_image[:, :, 0] + hue_shift) % 100  # OpenCV uses 0-179 for hue
-            # Convert back to BGR
+
+            # Apply hue shift correctly
+            hsv_image[:, :, 0] = (hsv_image[:, :, 0] + hue_shift) % 180
+
+            # Convert back to BGR and update display
             self.cv_image = cv2.cvtColor(hsv_image, cv2.COLOR_HSV2BGR)
             self.update_image_display()  # Update the displayed image
 
     def update_saturation(self):
-        """Update the image saturation based on the slider value"""
+        """Adjusts the image saturation from black & white (-100) to max saturation (+100)."""
         if self.cv_image is not None:
-            saturation_value = self.saturation_slider.value() / 100.0  # Get the current value of the slider (0.0 to 2.0)
+            sat_value = self.saturation_slider.value()  # Get slider value (-100 to 100)
 
-            # Convert the image to HSV
-            hsv_image = cv2.cvtColor(self.cv_image, cv2.COLOR_BGR2HSV)
-            # Adjust the saturation
-            hsv_image[:, :, 1] = np.clip(hsv_image[:, :, 1] * saturation_value, 0, 255)  # OpenCV uses 0-255 for saturation
-            # Convert back to BGR
+            # Convert to HSV color space
+            hsv_image = cv2.cvtColor(self.original_image, cv2.COLOR_BGR2HSV)
+            h, s, v = cv2.split(hsv_image)  # Split into channels
+
+            if sat_value == -100:
+                # Completely remove saturation by setting S channel to 0
+                s[:] = 0  
+            else:
+                if sat_value < 0:
+                    # Reduce saturation (fade to grayscale)
+                    scale = 1 + (sat_value / 100)  # Scale factor between 0 (B/W) and 1 (Original)
+                    s = (s * scale).astype(np.uint8)
+                else:
+                    # Increase saturation (boost colors)
+                    scale = 1 + (sat_value / 100)  # Scale factor between 1 (Original) and 2 (Max Boost)
+                    s = np.clip(s * scale, 0, 255).astype(np.uint8)  # Keep values within range
+                
+            # Merge modified channels back and convert to BGR
+            hsv_image = cv2.merge([h, s, v])
             self.cv_image = cv2.cvtColor(hsv_image, cv2.COLOR_HSV2BGR)
-            self.update_image_display()  # Update the displayed image
+
+            # Update displayed image
+            self.update_image_display()
 
     def update_luminosity(self):
-        """Update the image luminosity based on the slider value"""
+        """Adjusts the image luminosity from dark (-100) to bright (+100)."""
         if self.cv_image is not None:
-            luminosity_value = self.luminosity_slider.value() / 100.0  # Get the current value of the slider (0.0 to 2.0)
+            lum_value = self.luminosity_slider.value()  # Get slider value (-100 to 100)
 
-            # Convert the image to HSV
-            hsv_image = cv2.cvtColor(self.cv_image, cv2.COLOR_BGR2HSV)
-            # Adjust the luminosity (V channel in HSV)
-            hsv_image[:, :, 2] = np.clip(hsv_image[:, :, 2] * luminosity_value, 0, 255)  # OpenCV uses 0-255 for value
-            # Convert back to BGR
+            # Convert image to HSV
+            hsv_image = cv2.cvtColor(self.original_image, cv2.COLOR_BGR2HSV)
+            h, s, v = cv2.split(hsv_image)  # Split into channels
+
+            if lum_value < 0:
+                # Reduce brightness (darken image)
+                scale = 1 + (lum_value / 100)  # Scale factor between 0 (Dark) and 1 (Original)
+                v = (v * scale).astype(np.uint8)
+            else:
+                # Increase brightness (lighten image)
+                scale = 1 + (lum_value / 100)  # Scale factor between 1 (Original) and 2 (Max Brightness)
+                v = np.clip(v * scale, 0, 255).astype(np.uint8)  # Ensure valid range
+            
+            # Merge modified channels back and convert to BGR
+            hsv_image = cv2.merge([h, s, v])
             self.cv_image = cv2.cvtColor(hsv_image, cv2.COLOR_HSV2BGR)
-            self.update_image_display()  # Update the displayed image
+
+            # Update displayed image
+            self.update_image_display()
     
     def rotate_image(self):
         """Rotates the image by a user-defined angle."""
