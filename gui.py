@@ -1,4 +1,4 @@
-from PyQt6.QtWidgets import QApplication, QWidget, QVBoxLayout, QHBoxLayout, QPushButton, QFrame, QLabel, QFileDialog, QSlider
+from PyQt6.QtWidgets import QApplication, QWidget, QVBoxLayout, QHBoxLayout, QPushButton, QFrame, QLabel, QFileDialog, QSlider,QInputDialog
 from PyQt6.QtGui import QIcon, QPixmap, QFont, QImage, QMouseEvent, QKeyEvent
 from PyQt6.QtCore import Qt, QSize, QPoint
 import sys, os
@@ -63,6 +63,7 @@ class Window(QWidget):
         icons = {
             "Import": "Import.svg",
             "Export": "Export.svg",
+            "Brush": "Brush.svg",
             "Select": "Select.svg",
             "Rotate": "Rotate.svg",
             "Crop": "Crop.svg",
@@ -108,6 +109,9 @@ class Window(QWidget):
 
             elif name == "Crop":
                 button.clicked.connect(self.start_crop)
+            
+            elif name == "Brush":
+                button.clicked.connect(self.enable_brush)
 
             
 
@@ -252,12 +256,90 @@ class Window(QWidget):
         else:
             self.image_label.setStyleSheet("border: none;")
 
+
+    def enable_brush(self):
+        """Activates brush mode and asks user for brush settings"""
+        print("Brush Mode Enabled")
+
+        # Disable other tools
+        self.is_cropping = False
+        self.is_moving = False
+        self.is_drawing = False  # Ensure brush is reset
+
+        # Ask for brush color
+        color, ok = QInputDialog.getText(self, "Brush Color", "Enter Hex Color Code (#RRGGBB):")
+        if not ok or not color.startswith("#") or len(color) != 7:
+            print("Invalid color! Defaulting to blue.")
+            color = "#0000FF"  # Default to blue if input is invalid
+
+        # Ask for brush size
+        size, ok = QInputDialog.getInt(self, "Brush Size", "Enter Brush Size:", min=1, max=50)
+        if not ok:
+            print("Invalid size! Defaulting to 3px.")
+            size = 3  # Default size if input is invalid
+
+        # Convert hex color to BGR (OpenCV format)
+        self.brush_color = tuple(int(color[i:i+2], 16) for i in (5, 3, 1))  # Convert hex to BGR
+        self.brush_size = size
+
+        # Enable drawing mode
+        self.is_drawing = True
+
+        # Assign drawing events
+        self.image_label.mousePressEvent = self.start_drawing
+        self.image_label.mouseMoveEvent = self.draw
+        self.image_label.mouseReleaseEvent = self.stop_drawing
+
+
+    def start_drawing(self, event):
+        """Starts drawing on the image"""
+        if self.is_drawing and event.button() == Qt.MouseButton.LeftButton:
+            self.last_point = event.pos()
+
+
+    def draw(self, event):
+        """Draws on the image with the brush"""
+        if self.is_drawing and self.last_point is not None:
+            if self.cv_image is None:
+                return
+
+            img_height, img_width = self.cv_image.shape[:2]
+            label_width = self.image_label.width()
+            label_height = self.image_label.height()
+
+            scale_x = img_width / label_width
+            scale_y = img_height / label_height
+
+            x1 = int(self.last_point.x() * scale_x)
+            y1 = int(self.last_point.y() * scale_y)
+            x2 = int(event.pos().x() * scale_x)
+            y2 = int(event.pos().y() * scale_y)
+
+            cv2.line(self.cv_image, (x1, y1), (x2, y2), self.brush_color, self.brush_size)  # Brush color: Blue, Thickness: 3px
+            
+            self.last_point = event.pos()  # Update last position
+            self.update_image_display()  # Refresh image display
+
+    def stop_drawing(self, event):
+        """Stops drawing when the mouse is released"""
+        if self.is_drawing:
+            self.last_point = None
+
     
     def enable_selection(self):
-        """Activates selection mode"""
+        """Activates selection mode and disables other tools"""
         print("Selection Mode Enabled")
+
+        # Disable brush mode
+        self.is_drawing = False
+
         self.image_selected = True
         self.update_image_display()
+
+        # Assign movement-related events to the image label
+        self.image_label.mousePressEvent = self.select_image
+        self.image_label.mouseMoveEvent = self.move_image
+        self.image_label.mouseReleaseEvent = self.stop_moving
 
     def select_image(self, event):
         """Selects the image and enables movement"""
