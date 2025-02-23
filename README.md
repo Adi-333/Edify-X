@@ -2,7 +2,7 @@
 
 ## **So, what is Edify-X?**  
 
-**Edify-X** is a cross-platform image editing tool designed for those who prefer an offline, open-source alternative for manipulating images with precision. Whether you're adjusting colors, applying filters, editing layers, etc., Edify-X provides a lightweight yet powerful environment to bring your creative ideas to life.  
+**Edify-X** is a cross-platform image editing tool designed for those who prefer an offline, open-source alternative for manipulating images with precision. Whether you're adjusting colors, applying filters, etc., Edify-X provides a lightweight yet powerful environment to bring your creative ideas to life.  
 
 ---
 
@@ -11,37 +11,58 @@
 ### 🎨 **Essential Editing Tools** 
 - Crop, resize, rotate, and adjust images with ease.
 
-### ↩️ **Undo and Redo**
-- Go back or forward in your edits without losing progress.
-
 ### 🔍 **Zoom & Pan**
 - Navigate through high-resolution images effortlessly.
 
-### 🎭 **Layers & Blending Modes**
-- Work with multiple layers & apply blending effects for advanced editing.
-
-### 🖌️ **Custom Brushes & Filters**
-- Apply customizable brushes and a variety of filters to enhance your images.
+### 🖌️ Customizable Brush
+- Use Customizable brush (size and color) to draw on the loaded image.
 
 ### 🖼️ **Format Support**
-- Import and export images in multiple formats including **PNG, JPG, BMP**, and more.
+- Import and export images in multiple formats including **PNG, JPG, JPEG**
 
 ### ⚡ **Offline & Lightweight**
 - No internet required—designed for fast performance even on low-end devices.
 
 ---
 
-## **Usage** 
+## **Installation & Usage**
 
-1️⃣ **Start a new project** – Open an image or create a blank canvas.
+### For Linux
 
-2️⃣ **Use editing tools** – Apply adjustments, filters, and effects.
+#### With Virtual Environment
+```bash
+git clone https://github.com/LilSuperUser/Edify-X.git
+python -m venv env
+source ./env/bin/activate
+pip install -r requirements.txt
+python main.py
+```
 
-3️⃣ **Work with layers** – Add, edit, and blend layers for complex compositions.
+#### Without Virtual Environment
+```bash
+git clone https://github.com/LilSuperUser/Edify-X.git
+pip install -r requirements.txt
+python main.py
+```
 
-4️⃣ **Enhance with brushes & filters** – Customize your edits with precision.
+### For Windows
 
-5️⃣ **Export your work** – Save your final image in your preferred format.
+#### with Virtual Environment
+```bash
+git clone https://github.com/LilSuperUser/Edify-X.git
+python3 -m venv env
+env\scripts\activate
+pip install -r requirements.txt
+python main.py
+```
+
+#### Without Virtual Environment
+```bash
+git clone https://github.com/LilSuperUser/Edify-X.git
+pip install -r requirements.txt
+python main.py
+```
+
 
 ---
 
