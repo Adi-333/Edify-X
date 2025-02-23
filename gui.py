@@ -1,7 +1,7 @@
 from PyQt6.QtWidgets import QApplication, QWidget, QVBoxLayout, QHBoxLayout, QPushButton, QFrame, QLabel, QFileDialog, QSlider
 from PyQt6.QtGui import QIcon, QPixmap, QFont, QImage, QMouseEvent, QKeyEvent
 from PyQt6.QtCore import Qt, QSize, QPoint
-import sys, os
+import sys, os, numpy as np
 import cv2
 
 MAIN_ICON = "./assets/icons/main_icon.png"
@@ -180,6 +180,31 @@ class Window(QWidget):
             btn.clicked.connect(lambda checked, opt=option: self.adjust_blending(opt))  # Connect to adjust_blending method
             blending_box_layout.addWidget(btn)
 
+            # Add a slider below each button
+            if option == "Hue":
+                self.hue_slider = QSlider(Qt.Orientation.Horizontal)
+                self.hue_slider.setRange(0, 360)  # Hue ranges from 0 to 360 degrees
+                self.hue_slider.setValue(0)  # Default value
+                self.hue_slider.setVisible(False)  # Initially hidden
+                self.hue_slider.valueChanged.connect(self.update_hue)  # Connect to update_hue method
+                blending_box_layout.addWidget(self.hue_slider)
+
+            elif option == "Saturation":
+                self.saturation_slider = QSlider(Qt.Orientation.Horizontal)
+                self.saturation_slider.setRange(0, 200)  # Saturation ranges from 0% to 200%
+                self.saturation_slider.setValue(100)  # Default value (100% saturation)
+                self.saturation_slider.setVisible(False)  # Initially hidden
+                self.saturation_slider.valueChanged.connect(self.update_saturation)  # Connect to update_saturation method
+                blending_box_layout.addWidget(self.saturation_slider)
+            
+            elif option == "Luminosity":
+                self.luminosity_slider = QSlider(Qt.Orientation.Horizontal)
+                self.luminosity_slider.setRange(0, 200)  # Luminosity ranges from 0% to 200%
+                self.luminosity_slider.setValue(100)  # Default value (100% luminosity)
+                self.luminosity_slider.setVisible(False)  # Initially hidden
+                self.luminosity_slider.valueChanged.connect(self.update_luminosity)  # Connect to update_luminosity method
+                blending_box_layout.addWidget(self.luminosity_slider)
+
         blending_layout.addWidget(blending_box)
 
         # Add stretch below the blending box to push it towards center
@@ -188,15 +213,8 @@ class Window(QWidget):
         # -------- Adding to Side Panel Layout --------
         side_layout.addLayout(blending_layout)
 
-        # Create sliders for hue, saturation, and luminosity adjustment
-        self.hue_slider = QSlider(Qt.Orientation.Horizontal)
-        self.hue_slider.setRange(0, 360)  # Hue ranges from 0 to 360 degrees
-        self.hue_slider.setValue(0)  # Default value
-        self.hue_slider.setVisible(False)  # Initially hidden
-        self.hue_slider.valueChanged.connect(self.update_hue)  # Connect to update_hue method
-        side_layout.addWidget(self.hue_slider)
-
         return side_panel_frame
+
     
     def choose_image(self):
         #open a file dialogue for image selection
@@ -333,7 +351,6 @@ class Window(QWidget):
         self.image_label.mouseMoveEvent = self.mouse_move_event
         self.image_label.mouseReleaseEvent = self.mouse_release_event
 
-
     def mouse_press_event(self, event):
         """Get the starting coordinates of the mouse"""
         if event.button() == Qt.MouseButton.LeftButton and self.is_cropping:
@@ -391,6 +408,7 @@ class Window(QWidget):
             self.start_point = None
             self.end_point = None
 
+
             self.image_label.setCursor(Qt.CursorShape.ArrowCursor)
             self.image_label.mousePressEvent = self.select_image
             self.image_label.mouseMoveEvent = self.move_image
@@ -417,13 +435,21 @@ class Window(QWidget):
             cv2.rectangle(temp_image, (x1, y1), (x2, y2), (0, 255, 255), 2)  # White rectangle
         
             self.update_image_display(temp_image)
-
+    
     def adjust_blending(self, option):
         """Show the slider for adjusting the selected blending option"""
         if option == "Hue":
             self.hue_slider.setVisible(True)  # Show the hue slider
-        else:
-            self.hue_slider.setVisible(False)  # Hide the slider for other options
+            self.saturation_slider.setVisible(False)  # Hide the saturation slider
+            self.luminosity_slider.setVisible(False)  # Hide the luminosity slider
+        elif option == "Saturation":
+            self.saturation_slider.setVisible(True)  # Show the saturation slider
+            self.hue_slider.setVisible(False)  # Hide the hue slider
+            self.luminosity_slider.setVisible(False)  # Hide the luminosity slider
+        elif option == "Luminosity":
+            self.luminosity_slider.setVisible(True)  # Show the luminosity slider
+            self.hue_slider.setVisible(False)  # Hide the hue slider
+            self.saturation_slider.setVisible(False)  # Hide the saturation slider
 
     def update_hue(self):
         """Update the image hue based on the slider value"""
@@ -435,6 +461,32 @@ class Window(QWidget):
             hsv_image = cv2.cvtColor(self.cv_image, cv2.COLOR_BGR2HSV)
             # Adjust the hue
             hsv_image[:, :, 0] = (hsv_image[:, :, 0] + hue_shift) % 100  # OpenCV uses 0-179 for hue
+            # Convert back to BGR
+            self.cv_image = cv2.cvtColor(hsv_image, cv2.COLOR_HSV2BGR)
+            self.update_image_display()  # Update the displayed image
+
+    def update_saturation(self):
+        """Update the image saturation based on the slider value"""
+        if self.cv_image is not None:
+            saturation_value = self.saturation_slider.value() / 100.0  # Get the current value of the slider (0.0 to 2.0)
+
+            # Convert the image to HSV
+            hsv_image = cv2.cvtColor(self.cv_image, cv2.COLOR_BGR2HSV)
+            # Adjust the saturation
+            hsv_image[:, :, 1] = np.clip(hsv_image[:, :, 1] * saturation_value, 0, 255)  # OpenCV uses 0-255 for saturation
+            # Convert back to BGR
+            self.cv_image = cv2.cvtColor(hsv_image, cv2.COLOR_HSV2BGR)
+            self.update_image_display()  # Update the displayed image
+
+    def update_luminosity(self):
+        """Update the image luminosity based on the slider value"""
+        if self.cv_image is not None:
+            luminosity_value = self.luminosity_slider.value() / 100.0  # Get the current value of the slider (0.0 to 2.0)
+
+            # Convert the image to HSV
+            hsv_image = cv2.cvtColor(self.cv_image, cv2.COLOR_BGR2HSV)
+            # Adjust the luminosity (V channel in HSV)
+            hsv_image[:, :, 2] = np.clip(hsv_image[:, :, 2] * luminosity_value, 0, 255)  # OpenCV uses 0-255 for value
             # Convert back to BGR
             self.cv_image = cv2.cvtColor(hsv_image, cv2.COLOR_HSV2BGR)
             self.update_image_display()  # Update the displayed image
