@@ -1,7 +1,8 @@
-from PyQt6.QtWidgets import QApplication, QWidget, QVBoxLayout, QHBoxLayout, QPushButton, QFrame, QLabel, QFileDialog, QSlider
+from PyQt6.QtWidgets import QApplication, QWidget, QVBoxLayout, QHBoxLayout, QPushButton, QFrame, QLabel, QFileDialog, QSlider,QInputDialog
 from PyQt6.QtGui import QIcon, QPixmap, QFont, QImage, QMouseEvent, QKeyEvent
 from PyQt6.QtCore import Qt, QSize, QPoint
-import sys, os, numpy as np
+import sys, os
+import numpy as np
 import cv2
 
 MAIN_ICON = "./assets/icons/main_icon.png"
@@ -63,12 +64,12 @@ class Window(QWidget):
         icons = {
             "Import": "Import.svg",
             "Export": "Export.svg",
+            "Brush": "Brush.svg",
             "Select": "Select.svg",
             "Rotate": "Rotate.svg",
             "Crop": "Crop.svg",
             "Zoom-in": "Zoom-in.svg",
             "Zoom-out": "Zoom-out.svg",
-            "Text": "Text.svg",
             "Trash": "Trash.svg"
         }
 
@@ -91,8 +92,14 @@ class Window(QWidget):
             if name == "Import":
                 button.clicked.connect(self.choose_image)
 
+            elif name == "Export":
+                button.clicked.connect(self.export_image)
+
             elif name == "Select":
                 button.clicked.connect(self.enable_selection)
+
+            elif name == "Crop":
+                button.clicked.connect(self.start_crop)
 
             elif name == "Zoom-in":
                 button.clicked.connect(self.zoom_in)
@@ -108,8 +115,10 @@ class Window(QWidget):
 
             elif name == "Crop":
                 button.clicked.connect(self.start_crop)
-
             
+            elif name == "Brush":
+                button.clicked.connect(self.enable_brush)
+
 
             toolbar_layout.addWidget(button)
 
@@ -136,7 +145,7 @@ class Window(QWidget):
 
         return canvas_wrapper
 
-    # ----------------- Side Panel ------------------------ #
+    # ----------------- Side Panel ------------------------ 
     def create_side_panel(self):
         side_panel_frame = QFrame()
         side_panel_frame.setStyleSheet(f"background-color: {CANVAS_COLOR}; border-radius: 8px;")
@@ -215,7 +224,6 @@ class Window(QWidget):
 
         return side_panel_frame
 
-    
     def choose_image(self):
         #open a file dialogue for image selection
         file_dialogue = QFileDialog()
@@ -270,12 +278,90 @@ class Window(QWidget):
         else:
             self.image_label.setStyleSheet("border: none;")
 
+
+    def enable_brush(self):
+        """Activates brush mode and asks user for brush settings"""
+        print("Brush Mode Enabled")
+
+        # Disable other tools
+        self.is_cropping = False
+        self.is_moving = False
+        self.is_drawing = False  # Ensure brush is reset
+
+        # Ask for brush color
+        color, ok = QInputDialog.getText(self, "Brush Color", "Enter Hex Color Code (#RRGGBB):")
+        if not ok or not color.startswith("#") or len(color) != 7:
+            print("Invalid color! Defaulting to blue.")
+            color = "#0000FF"  # Default to blue if input is invalid
+
+        # Ask for brush size
+        size, ok = QInputDialog.getInt(self, "Brush Size", "Enter Brush Size:", min=1, max=50)
+        if not ok:
+            print("Invalid size! Defaulting to 3px.")
+            size = 3  # Default size if input is invalid
+
+        # Convert hex color to BGR (OpenCV format)
+        self.brush_color = tuple(int(color[i:i+2], 16) for i in (5, 3, 1))  # Convert hex to BGR
+        self.brush_size = size
+
+        # Enable drawing mode
+        self.is_drawing = True
+
+        # Assign drawing events
+        self.image_label.mousePressEvent = self.start_drawing
+        self.image_label.mouseMoveEvent = self.draw
+        self.image_label.mouseReleaseEvent = self.stop_drawing
+
+
+    def start_drawing(self, event):
+        """Starts drawing on the image"""
+        if self.is_drawing and event.button() == Qt.MouseButton.LeftButton:
+            self.last_point = event.pos()
+
+
+    def draw(self, event):
+        """Draws on the image with the brush"""
+        if self.is_drawing and self.last_point is not None:
+            if self.cv_image is None:
+                return
+
+            img_height, img_width = self.cv_image.shape[:2]
+            label_width = self.image_label.width()
+            label_height = self.image_label.height()
+
+            scale_x = img_width / label_width
+            scale_y = img_height / label_height
+
+            x1 = int(self.last_point.x() * scale_x)
+            y1 = int(self.last_point.y() * scale_y)
+            x2 = int(event.pos().x() * scale_x)
+            y2 = int(event.pos().y() * scale_y)
+
+            cv2.line(self.cv_image, (x1, y1), (x2, y2), self.brush_color, self.brush_size)  # Brush color: Blue, Thickness: 3px
+            
+            self.last_point = event.pos()  # Update last position
+            self.update_image_display()  # Refresh image display
+
+    def stop_drawing(self, event):
+        """Stops drawing when the mouse is released"""
+        if self.is_drawing:
+            self.last_point = None
+
     
     def enable_selection(self):
-        """Activates selection mode"""
+        """Activates selection mode and disables other tools"""
         print("Selection Mode Enabled")
+
+        # Disable brush mode
+        self.is_drawing = False
+
         self.image_selected = True
         self.update_image_display()
+
+        # Assign movement-related events to the image label
+        self.image_label.mousePressEvent = self.select_image
+        self.image_label.mouseMoveEvent = self.move_image
+        self.image_label.mouseReleaseEvent = self.stop_moving
 
     def select_image(self, event):
         """Selects the image and enables movement"""
@@ -351,6 +437,7 @@ class Window(QWidget):
         self.image_label.mouseMoveEvent = self.mouse_move_event
         self.image_label.mouseReleaseEvent = self.mouse_release_event
 
+
     def mouse_press_event(self, event):
         """Get the starting coordinates of the mouse"""
         if event.button() == Qt.MouseButton.LeftButton and self.is_cropping:
@@ -408,7 +495,6 @@ class Window(QWidget):
             self.start_point = None
             self.end_point = None
 
-
             self.image_label.setCursor(Qt.CursorShape.ArrowCursor)
             self.image_label.mousePressEvent = self.select_image
             self.image_label.mouseMoveEvent = self.move_image
@@ -435,7 +521,8 @@ class Window(QWidget):
             cv2.rectangle(temp_image, (x1, y1), (x2, y2), (0, 255, 255), 2)  # White rectangle
         
             self.update_image_display(temp_image)
-    
+
+
     def adjust_blending(self, option):
         """Show the slider for adjusting the selected blending option"""
         if option == "Hue":
@@ -498,7 +585,6 @@ def start():
     window.show()
 
     sys.exit(app.exec())
-
 
 #-------------------------------------------------------------------#
 if __name__ == "__main__":
