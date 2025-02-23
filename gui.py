@@ -68,7 +68,6 @@ class Window(QWidget):
             "Crop": "Crop.svg",
             "Zoom-in": "Zoom-in.svg",
             "Zoom-out": "Zoom-out.svg",
-            "Text": "Text.svg",
             "Trash": "Trash.svg"
         }
 
@@ -91,8 +90,14 @@ class Window(QWidget):
             if name == "Import":
                 button.clicked.connect(self.choose_image)
 
+            elif name == "Export":
+                button.clicked.connect(self.export_image)
+
             elif name == "Select":
                 button.clicked.connect(self.enable_selection)
+
+            elif name == "Crop":
+                button.clicked.connect(self.start_crop)
 
             elif name == "Zoom-in":
                 button.clicked.connect(self.zoom_in)
@@ -102,14 +107,6 @@ class Window(QWidget):
             
             elif name == "Trash":
                 button.clicked.connect(self.clear_canvas)
-            
-            elif name == "Export":
-                button.clicked.connect(self.export_image)
-
-            elif name == "Crop":
-                button.clicked.connect(self.start_crop)
-
-            
 
             toolbar_layout.addWidget(button)
 
