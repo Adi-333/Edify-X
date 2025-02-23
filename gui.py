@@ -98,6 +98,9 @@ class Window(QWidget):
             elif name == "Select":
                 button.clicked.connect(self.enable_selection)
 
+            elif name == "Rotate":
+                button.clicked.connect(self.rotate_image)
+
             elif name == "Crop":
                 button.clicked.connect(self.start_crop)
 
@@ -577,6 +580,35 @@ class Window(QWidget):
             # Convert back to BGR
             self.cv_image = cv2.cvtColor(hsv_image, cv2.COLOR_HSV2BGR)
             self.update_image_display()  # Update the displayed image
+    
+    def rotate_image(self):
+        """Rotates the image by a user-defined angle."""
+        if self.cv_image is not None:
+            # Create input dialog for rotation angle
+            dialog = QInputDialog(self)
+            dialog.setWindowTitle("Rotate Image")
+            dialog.setLabelText("Enter rotation angle (degrees):")
+            dialog.setStyleSheet("QWidget { background-color: white; }")  # Set text box color to white
+
+            angle, ok = dialog.getInt(self, "Rotate Image", "Enter rotation angle (degrees):", 0, -360, 360, 1)
+
+            if ok:  # Check if the user clicked OK
+            # Rotate the image
+                self.cv_image = self.rotate_image_by_angle(self.cv_image, angle)
+                self.update_image_display()
+                print(f"Image Rotated by {angle} degrees")
+
+    def rotate_image_by_angle(self, image, angle):
+        """Rotates the image by the specified angle."""
+        # Get the image dimensions
+        (h, w) = image.shape[:2]
+        # Calculate the center of the image
+        center = (w // 2, h // 2)
+        # Create the rotation matrix
+        M = cv2.getRotationMatrix2D(center, angle, 1.0)
+        # Perform the rotation
+        rotated_image = cv2.warpAffine(image, M, (w, h))
+        return rotated_image
 
 def start():
     app = QApplication([])
